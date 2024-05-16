@@ -34,7 +34,26 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
         Long chatId = message.getChatId();
         System.out.println("Message: " + message.getText() + " from: @" + from);
         if (message.hasText()) {
-            SendMessage sendMessage = SendMessage.builder().chatId(chatId.toString()).text(message.getText()).build();
+            if (message.isCommand()) {
+                // AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA
+                String cmd = message.getText();
+                if ("/pic".equals(cmd)) {
+                    SendPhoto sendPhoto = SendPhoto.builder()
+                            .chatId(chatId)
+                            .photo(new InputFile("AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA"))
+                            .build();
+                    try {
+                        client.execute(sendPhoto);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            SendMessage sendMessage = SendMessage.builder()
+                    .chatId(chatId.toString())
+                    .text(message.getText())
+                    .build();
             try {
                 client.execute(sendMessage);
             } catch (TelegramApiException e) {
@@ -42,7 +61,8 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
             }
         } else if (message.hasPhoto()) {
             List<PhotoSize> photos = message.getPhoto();
-            Optional<PhotoSize> maxPhotoSize = photos.stream().max(Comparator.comparing(PhotoSize::getFileSize));
+            Optional<PhotoSize> maxPhotoSize = photos.stream()
+                    .max(Comparator.comparing(PhotoSize::getFileSize));
             String fileId = maxPhotoSize.map(PhotoSize::getFileId).orElse("");
             Integer photoWidth = maxPhotoSize.map(PhotoSize::getWidth).orElse(0);
             Integer photoHeight = maxPhotoSize.map(PhotoSize::getHeight).orElse(0);
