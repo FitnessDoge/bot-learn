@@ -9,6 +9,8 @@ import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.Comparator;
@@ -35,50 +37,82 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
         System.out.println("Message: " + message.getText() + " from: @" + from);
         if (message.hasText()) {
             if (message.isCommand()) {
-                // AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA
-                String cmd = message.getText();
-                if ("/pic".equals(cmd)) {
-                    SendPhoto sendPhoto = SendPhoto.builder()
-                            .chatId(chatId)
-                            .photo(new InputFile("AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA"))
-                            .build();
-                    try {
-                        client.execute(sendPhoto);
-                    } catch (TelegramApiException e) {
-                        e.printStackTrace();
-                    }
+                handleCommand(message, chatId);
+            } else {
+                SendMessage sendMessage = SendMessage.builder()
+                        .chatId(chatId.toString())
+                        .text(message.getText())
+                        .build();
+                try {
+                    client.execute(sendMessage);
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
                 }
             }
-
-            SendMessage sendMessage = SendMessage.builder()
-                    .chatId(chatId.toString())
-                    .text(message.getText())
-                    .build();
-            try {
-                client.execute(sendMessage);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
         } else if (message.hasPhoto()) {
-            List<PhotoSize> photos = message.getPhoto();
-            Optional<PhotoSize> maxPhotoSize = photos.stream()
-                    .max(Comparator.comparing(PhotoSize::getFileSize));
-            String fileId = maxPhotoSize.map(PhotoSize::getFileId).orElse("");
-            Integer photoWidth = maxPhotoSize.map(PhotoSize::getWidth).orElse(0);
-            Integer photoHeight = maxPhotoSize.map(PhotoSize::getHeight).orElse(0);
-            String caption = "file_id: " + fileId
-                    + "\nwidth: " + photoWidth
-                    + "\nheight: " + photoHeight;
+            handlePhoto(message, chatId);
+        }
+    }
+
+    private static void handleCommand(Message message, Long chatId) {
+        String cmd = message.getText();
+        if ("/pic".equals(cmd)) {
             SendPhoto sendPhoto = SendPhoto.builder()
                     .chatId(chatId)
-                    .photo(new InputFile(fileId))
-                    .caption(caption)
+                    .photo(new InputFile("AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA"))
                     .build();
             try {
                 client.execute(sendPhoto);
             } catch (TelegramApiException e) {
                 e.printStackTrace();
             }
+        } else if ("/reply".equals(cmd)) {
+            ReplyKeyboardMarkup replyKeyboardMarkup = ReplyKeyboardMarkup.builder()
+                    .keyboardRow(new KeyboardRow("Row1 Button1", "Row1 Button2"))
+                    .keyboardRow(new KeyboardRow("Row2 Button1", "Row2 Button2"))
+                    .build();
+            SendMessage sendMessage = SendMessage.builder()
+                    .chatId(chatId)
+                    .text("Reply Keyboard")
+                    .replyMarkup(replyKeyboardMarkup)
+                    .build();
+            try {
+                client.execute(sendMessage);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        } else if ("/inline".equals(cmd)) {
+            SendMessage sendMessage = SendMessage.builder()
+                    .chatId(chatId)
+                    .text("inline Keyboard")
+                    .build();
+            try {
+                client.execute(sendMessage);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void handlePhoto(Message message, Long chatId) {
+        List<PhotoSize> photos = message.getPhoto();
+        Optional<PhotoSize> maxPhotoSize = photos.stream()
+                .max(Comparator.comparing(PhotoSize::getFileSize));
+        String fileId = maxPhotoSize.map(PhotoSize::getFileId).orElse("");
+        Integer photoWidth = maxPhotoSize.map(PhotoSize::getWidth).orElse(0);
+        Integer photoHeight = maxPhotoSize.map(PhotoSize::getHeight).orElse(0);
+        String caption = "file_id: " + fileId
+                + "\nwidth: " + photoWidth
+                + "\nheight: " + photoHeight;
+        SendPhoto sendPhoto = SendPhoto.builder()
+                .chatId(chatId)
+                .photo(new InputFile(fileId))
+                .caption(caption)
+                .build();
+        try {
+            client.execute(sendPhoto);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 }
