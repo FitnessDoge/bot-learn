@@ -5,13 +5,14 @@ import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.PhotoSize;
-import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -31,6 +32,9 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
         Message message;
         if (update.hasMessage()) {
             message = update.getMessage();
+        } else if (update.hasCallbackQuery()) {
+            handleCallback(update);
+            return;
         } else {
             return;
         }
@@ -45,14 +49,59 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
                 handleCommand(message, chatId);
             } else {
                 // text
-                sendMessage(chatId, message.getText());
+                sendSimpleMessage(chatId, message.getText());
             }
         } else if (message.hasPhoto()) {
             handlePhoto(message, chatId);
         }
     }
 
-    private void sendMessage(Long chatId, String message) {
+    private void handleCallback(Update update) {
+        CallbackQuery callback = update.getCallbackQuery();
+        String callbackData = callback.getData();
+        Long chatId = callback.getMessage().getChatId();
+        Integer messageId = callback.getMessage().getMessageId();
+
+        if ("prev".equals(callbackData)) {
+            InlineKeyboardButton next = InlineKeyboardButton.builder()
+                    .text("Next")
+                    .callbackData("/menu")
+                    .build();
+            InlineKeyboardMarkup inlineKeyboardMarkup = InlineKeyboardMarkup.builder()
+                    .keyboardRow(new InlineKeyboardRow(next))
+                    .build();
+            EditMessageReplyMarkup editMessageReplyMarkup = EditMessageReplyMarkup.builder()
+                    .chatId(chatId)
+                    .messageId(messageId)
+                    .replyMarkup(inlineKeyboardMarkup)
+                    .build();
+            try {
+                client.execute(editMessageReplyMarkup);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        } else if ("next".equals(callbackData)) {
+            InlineKeyboardButton prev = InlineKeyboardButton.builder()
+                    .text("Previous")
+                    .callbackData("/menu")
+                    .build();
+            InlineKeyboardMarkup inlineKeyboardMarkup = InlineKeyboardMarkup.builder()
+                    .keyboardRow(new InlineKeyboardRow(prev))
+                    .build();
+            EditMessageReplyMarkup editMessageReplyMarkup = EditMessageReplyMarkup.builder()
+                    .chatId(chatId)
+                    .messageId(messageId)
+                    .replyMarkup(inlineKeyboardMarkup)
+                    .build();
+            try {
+                client.execute(editMessageReplyMarkup);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void sendSimpleMessage(Long chatId, String message) {
         SendMessage sendMessage = SendMessage.builder()
                 .chatId(chatId.toString())
                 .text(message)
@@ -75,7 +124,37 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
             hideReplyKeyboard(chatId);
         } else if ("/emoji".equals(cmd)) {
             String emojiMessage = EmojiParser.parseToUnicode("\uD83E\uDEE1");
-            sendMessage(chatId, emojiMessage);
+            sendSimpleMessage(chatId, emojiMessage);
+        } else if ("/menu".equals(cmd)) {
+            sendMenu(chatId);
+        }
+    }
+
+    private void sendMenu(Long chatId) {
+        InlineKeyboardButton prev = InlineKeyboardButton.builder()
+                .text("Previous")
+                .callbackData("prev")
+                .build();
+        InlineKeyboardButton url = InlineKeyboardButton.builder()
+                .text("Previous")
+                .url("https://rubenlagus.github.io/TelegramBotsDocumentation/lesson-6.html")
+                .build();
+        InlineKeyboardButton next = InlineKeyboardButton.builder()
+                .text("Next")
+                .callbackData("next")
+                .build();
+        InlineKeyboardMarkup inlineKeyboardMarkup = InlineKeyboardMarkup.builder()
+                .keyboardRow(new InlineKeyboardRow(prev, url, next))
+                .build();
+        SendMessage sendMessage = SendMessage.builder()
+                .chatId(chatId)
+                .text("Menu")
+                .replyMarkup(inlineKeyboardMarkup)
+                .build();
+        try {
+            client.execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 
