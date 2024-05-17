@@ -1,5 +1,6 @@
 package bot_learn.bot;
 
+import com.vdurmont.emoji.EmojiParser;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -40,20 +41,26 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
 
         if (message.hasText()) {
             if (message.isCommand()) {
+                // command
                 handleCommand(message, chatId);
             } else {
-                SendMessage sendMessage = SendMessage.builder()
-                        .chatId(chatId.toString())
-                        .text(message.getText())
-                        .build();
-                try {
-                    client.execute(sendMessage);
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
+                // text
+                sendMessage(chatId, message.getText());
             }
         } else if (message.hasPhoto()) {
             handlePhoto(message, chatId);
+        }
+    }
+
+    private void sendMessage(Long chatId, String message) {
+        SendMessage sendMessage = SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(message)
+                .build();
+        try {
+            client.execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 
@@ -66,6 +73,9 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
             sendReplyKeyboard(chatId);
         } else if ("/hide".equals(cmd)) {
             hideReplyKeyboard(chatId);
+        } else if ("/emoji".equals(cmd)) {
+            String emojiMessage = EmojiParser.parseToUnicode("\uD83E\uDEE1");
+            sendMessage(chatId, emojiMessage);
         }
     }
 
