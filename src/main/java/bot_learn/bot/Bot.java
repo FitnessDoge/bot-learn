@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class Bot implements LongPollingSingleThreadUpdateConsumer {
-    private static OkHttpTelegramClient client;
+    private final OkHttpTelegramClient client;
 
     public Bot() {
         client = new OkHttpTelegramClient(System.getenv("TG_BOT_TOKEN"));
@@ -32,9 +33,11 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
         } else {
             return;
         }
+
         User from = message.getFrom();
         Long chatId = message.getChatId();
         System.out.println("Message: " + message.getText() + " from: @" + from);
+
         if (message.hasText()) {
             if (message.isCommand()) {
                 handleCommand(message, chatId);
@@ -54,47 +57,49 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
         }
     }
 
-    private static void handleCommand(Message message, Long chatId) {
+    private void handleCommand(Message message, Long chatId) {
         String cmd = message.getText();
         if ("/pic".equals(cmd)) {
-            SendPhoto sendPhoto = SendPhoto.builder()
-                    .chatId(chatId)
-                    .photo(new InputFile("AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA"))
-                    .build();
-            try {
-                client.execute(sendPhoto);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
+            String fileId = "AgACAgUAAxkBAAMUZkYeNzWfCtwt3xeN0-j_QCY7-JMAAp-7MRu9HTBWVo-5iM5U01gBAAMCAAN4AAM1BA";
+            sendPhoto(chatId, fileId, null);
         } else if ("/reply".equals(cmd)) {
-            ReplyKeyboardMarkup replyKeyboardMarkup = ReplyKeyboardMarkup.builder()
-                    .keyboardRow(new KeyboardRow("Row1 Button1", "Row1 Button2"))
-                    .keyboardRow(new KeyboardRow("Row2 Button1", "Row2 Button2"))
-                    .build();
-            SendMessage sendMessage = SendMessage.builder()
-                    .chatId(chatId)
-                    .text("Reply Keyboard")
-                    .replyMarkup(replyKeyboardMarkup)
-                    .build();
-            try {
-                client.execute(sendMessage);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        } else if ("/inline".equals(cmd)) {
-            SendMessage sendMessage = SendMessage.builder()
-                    .chatId(chatId)
-                    .text("inline Keyboard")
-                    .build();
-            try {
-                client.execute(sendMessage);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
+            sendReplyKeyboard(chatId);
+        } else if ("/hide".equals(cmd)) {
+            hideReplyKeyboard(chatId);
         }
     }
 
-    private static void handlePhoto(Message message, Long chatId) {
+    private void sendReplyKeyboard(Long chatId) {
+        ReplyKeyboardMarkup replyKeyboardMarkup = ReplyKeyboardMarkup.builder()
+                .keyboardRow(new KeyboardRow("Row1 Button1", "Row1 Button2"))
+                .keyboardRow(new KeyboardRow("Row2 Button1", "Row2 Button2"))
+                .build();
+        SendMessage sendMessage = SendMessage.builder()
+                .chatId(chatId)
+                .text("Reply Keyboard")
+                .replyMarkup(replyKeyboardMarkup)
+                .build();
+        try {
+            client.execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void hideReplyKeyboard(Long chatId) {
+        SendMessage sendMessage = SendMessage.builder()
+                .chatId(chatId)
+                .text("Keyboard hidden")
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            client.execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handlePhoto(Message message, Long chatId) {
         List<PhotoSize> photos = message.getPhoto();
         Optional<PhotoSize> maxPhotoSize = photos.stream()
                 .max(Comparator.comparing(PhotoSize::getFileSize));
@@ -104,6 +109,10 @@ public class Bot implements LongPollingSingleThreadUpdateConsumer {
         String caption = "file_id: " + fileId
                 + "\nwidth: " + photoWidth
                 + "\nheight: " + photoHeight;
+        sendPhoto(chatId, fileId, caption);
+    }
+
+    private void sendPhoto(Long chatId, String fileId, String caption) {
         SendPhoto sendPhoto = SendPhoto.builder()
                 .chatId(chatId)
                 .photo(new InputFile(fileId))
